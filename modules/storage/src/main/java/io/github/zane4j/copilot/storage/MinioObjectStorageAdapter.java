@@ -1,6 +1,7 @@
 package io.github.zane4j.copilot.storage;
 
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -61,6 +62,16 @@ public final class MinioObjectStorageAdapter implements ObjectStoragePort {
             return new StoredObject(command.objectKey(), HexFormat.of().formatHex(digest.digest()));
         } catch (Exception exception) {
             throw new ObjectStorageException("Unable to upload object to storage", exception);
+        }
+    }
+
+    @Override
+    public InputStream get(String objectKey) {
+        Objects.requireNonNull(objectKey, "objectKey must not be null");
+        try {
+            return minioClient.getObject(GetObjectArgs.builder().bucket(bucketName).object(objectKey).build());
+        } catch (Exception exception) {
+            throw new ObjectStorageException("Unable to read object from storage", exception);
         }
     }
 
