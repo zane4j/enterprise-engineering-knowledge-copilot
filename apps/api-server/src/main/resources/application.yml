@@ -13,10 +13,13 @@ spring:
       max-request-size: ${MAX_UPLOAD_REQUEST_SIZE:26MB}
   ai:
     model:
-      chat: none
+      chat: ${SPRING_AI_CHAT_MODEL:none}
       embedding: ${SPRING_AI_EMBEDDING_MODEL:none}
     openai:
       api-key: ${OPENAI_API_KEY:}
+      chat:
+        model: ${COPILOT_CHAT_MODEL:gpt-5-mini}
+        temperature: ${COPILOT_CHAT_TEMPERATURE:0.1}
       embedding:
         model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
         dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
@@ -47,3 +50,6 @@ copilot:
     model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
     dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
     batch-size: ${COPILOT_EMBEDDING_BATCH_SIZE:32}
+  chat:
+    provider: ${COPILOT_CHAT_PROVIDER:none}
+    max-evidence-characters: ${COPILOT_CHAT_MAX_EVIDENCE_CHARACTERS:12000}

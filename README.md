@@ -2,7 +2,7 @@
 
 A multi-tenant, source-grounded RAG platform for engineering teams.
 
-It ingests internal engineering documents such as runbooks, architecture decisions, incident postmortems, API specifications, and SOPs. Users can search within their authorized knowledge bases and receive source-grounded retrieval results. Chat synthesis is the next increment.
+It ingests internal engineering documents such as runbooks, architecture decisions, incident postmortems, API specifications, and SOPs. Users can search within their authorized knowledge bases and receive source-grounded streaming answers with traceable citations.
 
 ## Why this project
 
@@ -12,7 +12,8 @@ Typical "chat with PDF" demos do not address the constraints that matter in an e
 - RBAC-enforced retrieval
 - asynchronous document ingestion
 - provider-swappable embeddings and pgvector search
-- source citations and low-confidence handling
+- source citations frozen before generation
+- streaming, source-grounded engineering answers
 - incident troubleshooting workflows
 - RAG evaluation and observability
 
@@ -25,8 +26,8 @@ React Web
     v
 Spring Boot API
     |-- Identity and RBAC
-    |-- Knowledge Base Management
     |-- Vector Retrieval API
+    |-- Grounded Chat + frozen citations
     |-- Document Upload API
     |
     +-------------------------+
@@ -54,21 +55,20 @@ Ingestion Worker
 - Micrometer, OpenTelemetry, Prometheus, Grafana
 - JUnit 5, Testcontainers
 
-## Current milestone: Phase 2 — Vector-ready knowledge ingestion
+## Current milestone: Phase 3 — Grounded streaming chat
 
 - [x] Maven multi-module structure and CI
 - [x] PostgreSQL/pgvector, Redis, MinIO, optional Kafka local environment
 - [x] Tenant, knowledge-base, document, and ingestion-job schema
 - [x] Document upload API and MinIO storage with SHA-256
 - [x] Durable worker, Markdown/TXT parsing, and header-aware chunking
-- [x] Local deterministic embedding provider for full offline development
-- [x] OpenAI EmbeddingModel adapter through Spring AI configuration
-- [x] 1536-dimensional pgvector persistence
-- [x] Tenant- and knowledge-base-filtered cosine vector search API
-- [x] Document reindex API for embedding changes or backfill
+- [x] Provider-swappable embeddings and 1536-dimensional pgvector persistence
+- [x] Tenant- and knowledge-base-filtered semantic retrieval
+- [x] Grounded chat prompt with frozen citations and SSE response protocol
+- [x] OpenAI ChatClient adapter through Spring AI configuration
 - [ ] PDF parsing
 - [ ] Hybrid retrieval and reranking
-- [ ] Chat synthesis, streaming answers, and citations
+- [ ] Persisted chat sessions, feedback, and evaluation suite
 - [ ] JWT authentication and production RBAC adapter
 - [ ] Container image, HTTPS, and production deployment workflow
 
@@ -109,32 +109,39 @@ curl -s \
   http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/search
 ```
 
-The API returns `202 Accepted` for upload. Within the worker poll interval, the document becomes `READY`. The search API then returns matching chunks and their source locations.
+### 4. Enable streaming chat
 
-### Use OpenAI embeddings
-
-For production-quality semantic retrieval, set environment variables before starting both applications:
+Chat is intentionally disabled by default. Enable it with a server-side API key:
 
 ```bash
-export COPILOT_EMBEDDING_PROVIDER=openai
-export SPRING_AI_EMBEDDING_MODEL=openai
+export COPILOT_CHAT_PROVIDER=openai
+export SPRING_AI_CHAT_MODEL=openai
 export OPENAI_API_KEY=replace-with-secret
-export COPILOT_EMBEDDING_MODEL=text-embedding-3-small
+export COPILOT_CHAT_MODEL=gpt-5-mini
 ```
 
-Reindex existing documents after changing the provider.
+Then call:
+
+```bash
+curl -N \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Why use a modular monolith?","maxResults":5}' \
+  http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/chat/stream
+```
+
+The endpoint emits `citation`, `token`, and `completed` events. If no evidence is retrieved, it returns a direct knowledge-gap response without calling the model.
 
 ## Modules
 
 ```text
 apps/
-  api-server/          REST API, retrieval, document metadata
+  api-server/          REST API, retrieval, grounded chat, document metadata
   ingestion-worker/    durable job claim, parsing, chunking, embedding
 modules/
   common/              shared primitives and error handling
   domain/              domain model and ports
-  rag-core/            parsing, chunking, embeddings, retrieval contracts
-  ai-adapter/          Spring AI adapter and provider configuration
+  rag-core/            parsing, chunking, embedding and chat contracts
+  ai-adapter/          Spring AI OpenAI adapters and configuration
   security/            tenant context and authorization primitives
   storage/             MinIO/S3 object storage adapter
 infra/                 local infrastructure and database bootstrap

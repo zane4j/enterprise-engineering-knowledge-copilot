@@ -17,14 +17,6 @@ All production endpoints will be tenant-scoped through authenticated JWT claims.
 - Maximum file size: 25 MB by default
 - Response: `202 Accepted`
 
-```json
-{
-  "documentId": "3c5d8a98-e326-4fce-9178-8b09561a7d55",
-  "ingestionJobId": "44afc73c-d8be-4cf8-a381-4e24a2c64c8a",
-  "status": "PENDING"
-}
-```
-
 The worker transitions a job through `PENDING -> PROCESSING -> SUCCEEDED | FAILED`. TXT and Markdown are parsed into metadata-rich chunks, embedded, and persisted in pgvector. PDF remains accepted at upload time but is not parsed yet.
 
 ### Reindex a document
@@ -52,32 +44,40 @@ Returns `202 Accepted` and creates a new durable ingestion job. Use this after c
 }
 ```
 
+The response includes matching chunks and citations.
+
+## Grounded chat stream
+
+`POST /api/v1/knowledge-bases/{knowledgeBaseId}/chat/stream`
+
+Request:
+
 ```json
 {
-  "hits": [
-    {
-      "content": "# Database Connection Pool ...",
-      "citation": {
-        "documentId": "3c5d8a98-e326-4fce-9178-8b09561a7d55",
-        "documentName": "payment-service-runbook.md",
-        "locator": "Database Connection Pool (line 12, chunk 0)",
-        "score": 0.82,
-        "metadata": {
-          "sectionTitle": "Database Connection Pool"
-        }
-      }
-    }
-  ]
+  "question": "How should I troubleshoot database connection pool exhaustion?",
+  "maxResults": 5
 }
 ```
+
+Response content type: `text/event-stream`
+
+```text
+event: citation
+data: {"sourceId":"S1","documentName":"payment-runbook.md",...}
+
+event: token
+data: {"text":"Check the active connection count..."}
+
+event: completed
+data: {"citationCount":1,"grounded":true}
+```
+
+The service performs retrieval before model invocation. It emits frozen source citations before token events. When no evidence is retrieved, it emits a direct knowledge-gap answer and does not call the chat model.
 
 ## Planned endpoints
 
 - `POST /api/v1/knowledge-bases`
 - `GET /api/v1/knowledge-bases`
 - `POST /api/v1/chat/sessions`
-- `POST /api/v1/chat/sessions/{sessionId}/messages/stream`
 - `POST /api/v1/incidents/analyze`
 - `POST /api/v1/feedback`
-
-The future streaming chat endpoint will use Server-Sent Events and emit `token`, `citation`, `completed`, and `error` events.
