@@ -36,14 +36,10 @@ PostgreSQL + pgvector       MinIO
 metadata / chunks / search  original files
     |
     v
-Kafka
+Kafka / Worker
     |
     v
-Ingestion Worker
-    |-- document parsing
-    |-- cleaning and chunking
-    |-- embedding generation
-    `-- vector persistence
+Parse -> Chunk -> Embed -> Persist vectors
 ```
 
 ## Technology stack
@@ -56,58 +52,76 @@ Ingestion Worker
 - Micrometer, OpenTelemetry, Prometheus, Grafana
 - JUnit 5, Testcontainers
 
-## Modules
+## Current milestone: Phase 1 — Document ingestion entry point
 
-```text
-apps/
-  api-server/          REST API, authentication, RAG chat
-  ingestion-worker/    asynchronous document ingestion
-modules/
-  common/              shared primitives and error handling
-  domain/              domain model and ports
-  rag-core/            chunking, retrieval, citations
-  security/            tenant context and authorization
-  storage/             object storage and persistence adapters
-infra/                 local infrastructure and configuration
-docs/                  architecture decisions and API documentation
-evaluation/            golden datasets and RAG evaluation assets
-```
+- [x] Maven multi-module structure and CI
+- [x] PostgreSQL/pgvector, Redis, MinIO, optional Kafka local environment
+- [x] Initial tenant, knowledge-base, document, and ingestion-job schema
+- [x] Document upload API for PDF, Markdown, and text files
+- [x] MinIO-backed original-file storage with SHA-256 checksum
+- [x] Durable `PENDING` ingestion job and document-status API
+- [x] Tenant/knowledge-base authorization boundary with local seeded development data
+- [ ] Worker consumption, document parsing, chunking, and embeddings
+- [ ] JWT authentication and production RBAC adapter
+- [ ] Hybrid retrieval, streaming chat, citations, and evaluation
 
 ## Local development
 
-### Start infrastructure
+### 1. Start infrastructure
 
 ```bash
 cd infra
 docker compose up -d
+# Kafka is optional until the worker event consumer is enabled.
 docker compose --profile messaging up -d
 ```
 
-### Run the API skeleton
+The local profile seeds this knowledge base:
+
+```text
+00000000-0000-0000-0000-000000000010  Engineering Runbooks
+```
+
+If you ran PostgreSQL before the seed script was added, reset local volumes once:
+
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+### 2. Run the API
 
 ```bash
 mvn clean verify
 mvn -pl apps/api-server spring-boot:run
-curl http://localhost:8080/api/v1/system/info
 ```
 
-## Current milestone: Foundation
+### 3. Upload a sample document
 
-- [x] Maven multi-module structure
-- [x] Spring Boot API and ingestion-worker skeletons
-- [x] PostgreSQL/pgvector, Redis, MinIO, and optional Kafka local environment
-- [x] Initial schema, architecture, security model, ADRs, CI workflow
-- [ ] Document upload and MinIO adapter
-- [ ] Async ingestion and Kafka event flow
-- [ ] Chunking, embeddings, pgvector retrieval
-- [ ] JWT/RBAC, streaming chat, citations
+```bash
+curl -i \
+  -F "file=@docs/adr/001-modular-monolith.md;type=text/markdown" \
+  http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/documents
+```
 
-## Project roadmap
+The API returns `202 Accepted` with a durable ingestion job ID. The job remains `PENDING` until the parsing and embedding worker is implemented.
 
-1. **RAG MVP**: upload, parse, chunk, embed, store, retrieve, cite.
-2. **Enterprise controls**: JWT, tenant isolation, RBAC, audit trails, async jobs.
-3. **Quality and operations**: hybrid retrieval, reranking, RAG evaluation, telemetry.
-4. **Incident Copilot**: source-grounded operational troubleshooting.
+## Modules
+
+```text
+apps/
+  api-server/          REST API, document upload, metadata persistence
+  ingestion-worker/    upcoming parsing, chunking, embedding workflow
+modules/
+  common/              shared primitives and error handling
+  domain/              domain model and ports
+  rag-core/            chunking, retrieval, citations
+  security/            tenant context and authorization primitives
+  storage/             MinIO/S3 object storage adapter
+infra/                 local infrastructure and database bootstrap
+docs/                  architecture decisions and API documentation
+evaluation/            golden datasets and RAG evaluation assets
+```
 
 ## License
 
