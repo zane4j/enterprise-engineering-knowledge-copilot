@@ -1,0 +1,9 @@
+[
+  {
+    "id": "payment-db-pool-001",
+    "question": "How should I troubleshoot database connection pool exhaustion in the payment service?",
+    "expectedDocumentIds": ["payment-service-runbook"],
+    "expectedKeywords": ["connection pool", "slow SQL"],
+    "minimumCitationCount": 1
+  }
+]

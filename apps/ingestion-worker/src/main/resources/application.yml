@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: copilot-ingestion-worker
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+copilot:
+  ingestion:
+    enabled: true
+    max-attempts: 3

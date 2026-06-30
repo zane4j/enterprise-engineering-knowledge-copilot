@@ -4,14 +4,16 @@ A multi-tenant, source-grounded RAG platform for engineering teams.
 
 It ingests internal engineering documents such as runbooks, architecture decisions, incident postmortems, API specifications, and SOPs. Users can ask questions within their authorized knowledge bases and receive streaming answers with traceable citations.
 
-## Core capabilities
+## Why this project
 
-- Tenant and knowledge-base isolation
+Typical "chat with PDF" demos do not address the constraints that matter in an enterprise environment. This project focuses on:
+
+- tenant and knowledge-base isolation
 - RBAC-enforced retrieval
-- Asynchronous document ingestion
-- Hybrid retrieval: vector + keyword search
-- Source citations and low-confidence handling
-- Incident troubleshooting workflows
+- asynchronous document ingestion
+- hybrid retrieval: vector + keyword search
+- source citations and low-confidence handling
+- incident troubleshooting workflows
 - RAG evaluation and observability
 
 ## Architecture
@@ -54,12 +56,58 @@ Ingestion Worker
 - Micrometer, OpenTelemetry, Prometheus, Grafana
 - JUnit 5, Testcontainers
 
-## Delivery roadmap
+## Modules
 
-1. **Foundation**: project skeleton, local Docker infrastructure, architecture docs, CI.
-2. **RAG MVP**: upload documents, parse/chunk/embed, persist vectors, retrieve, answer with citations.
-3. **Enterprise controls**: JWT, tenant isolation, RBAC, Kafka ingestion jobs, audit logs, streaming responses.
-4. **Quality and operations**: hybrid retrieval, reranking, incident copilot, evaluation suite, dashboards.
+```text
+apps/
+  api-server/          REST API, authentication, RAG chat
+  ingestion-worker/    asynchronous document ingestion
+modules/
+  common/              shared primitives and error handling
+  domain/              domain model and ports
+  rag-core/            chunking, retrieval, citations
+  security/            tenant context and authorization
+  storage/             object storage and persistence adapters
+infra/                 local infrastructure and configuration
+docs/                  architecture decisions and API documentation
+evaluation/            golden datasets and RAG evaluation assets
+```
+
+## Local development
+
+### Start infrastructure
+
+```bash
+cd infra
+docker compose up -d
+docker compose --profile messaging up -d
+```
+
+### Run the API skeleton
+
+```bash
+mvn clean verify
+mvn -pl apps/api-server spring-boot:run
+curl http://localhost:8080/api/v1/system/info
+```
+
+## Current milestone: Foundation
+
+- [x] Maven multi-module structure
+- [x] Spring Boot API and ingestion-worker skeletons
+- [x] PostgreSQL/pgvector, Redis, MinIO, and optional Kafka local environment
+- [x] Initial schema, architecture, security model, ADRs, CI workflow
+- [ ] Document upload and MinIO adapter
+- [ ] Async ingestion and Kafka event flow
+- [ ] Chunking, embeddings, pgvector retrieval
+- [ ] JWT/RBAC, streaming chat, citations
+
+## Project roadmap
+
+1. **RAG MVP**: upload, parse, chunk, embed, store, retrieve, cite.
+2. **Enterprise controls**: JWT, tenant isolation, RBAC, audit trails, async jobs.
+3. **Quality and operations**: hybrid retrieval, reranking, RAG evaluation, telemetry.
+4. **Incident Copilot**: source-grounded operational troubleshooting.
 
 ## License
 

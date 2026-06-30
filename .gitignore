@@ -1,0 +1,19 @@
+# Build output
+**/target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local runtime configuration
+.env
+.env.*
+!.env.example
+
+# Local volumes
+infra/.data/
