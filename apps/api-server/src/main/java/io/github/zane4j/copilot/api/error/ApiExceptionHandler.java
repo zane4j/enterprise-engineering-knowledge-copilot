@@ -2,6 +2,7 @@ package io.github.zane4j.copilot.api.error;
 
 import io.github.zane4j.copilot.api.document.VectorSearchException;
 import io.github.zane4j.copilot.common.DomainException;
+import io.github.zane4j.copilot.rag.chat.ChatUnavailableException;
 import io.github.zane4j.copilot.rag.embedding.EmbeddingException;
 import io.github.zane4j.copilot.storage.ObjectStorageException;
 import org.springframework.http.HttpStatus;
@@ -56,6 +57,14 @@ class ApiExceptionHandler {
                 "Semantic retrieval is temporarily unavailable");
         problem.setTitle("Semantic retrieval unavailable");
         problem.setProperty("code", "SEMANTIC_RETRIEVAL_UNAVAILABLE");
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
+    }
+
+    @ExceptionHandler(ChatUnavailableException.class)
+    ResponseEntity<ProblemDetail> handleChatUnavailable(ChatUnavailableException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+        problem.setTitle("Grounded chat is not configured");
+        problem.setProperty("code", "CHAT_UNAVAILABLE");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
     }
 }
