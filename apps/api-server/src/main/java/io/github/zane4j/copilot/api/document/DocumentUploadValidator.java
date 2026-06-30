@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.Set;
 import org.springframework.web.multipart.MultipartFile;
 
-final class DocumentUploadValidator {
+public final class DocumentUploadValidator {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "md", "markdown", "txt");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
@@ -17,11 +17,11 @@ final class DocumentUploadValidator {
 
     private final long maxFileSizeBytes;
 
-    DocumentUploadValidator(long maxFileSizeBytes) {
+    public DocumentUploadValidator(long maxFileSizeBytes) {
         this.maxFileSizeBytes = maxFileSizeBytes;
     }
 
-    ValidatedUpload validate(MultipartFile file) {
+    public ValidatedUpload validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new DomainException("FILE_EMPTY", "A non-empty document file is required");
         }
@@ -64,6 +64,6 @@ final class DocumentUploadValidator {
         return fileName.substring(index + 1).toLowerCase(Locale.ROOT);
     }
 
-    record ValidatedUpload(String fileName, String contentType, long contentLength) {
+    public record ValidatedUpload(String fileName, String contentType, long contentLength) {
     }
 }
