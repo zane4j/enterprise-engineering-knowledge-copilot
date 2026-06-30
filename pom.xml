@@ -25,6 +25,7 @@
         <module>modules/security</module>
         <module>modules/storage</module>
         <module>modules/rag-core</module>
+        <module>modules/ai-adapter</module>
         <module>apps/api-server</module>
         <module>apps/ingestion-worker</module>
     </modules>

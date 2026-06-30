@@ -1,6 +1,8 @@
 package io.github.zane4j.copilot.api.error;
 
+import io.github.zane4j.copilot.api.document.VectorSearchException;
 import io.github.zane4j.copilot.common.DomainException;
+import io.github.zane4j.copilot.rag.embedding.EmbeddingException;
 import io.github.zane4j.copilot.storage.ObjectStorageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -16,7 +18,7 @@ class ApiExceptionHandler {
     ResponseEntity<ProblemDetail> handleDomainException(DomainException exception) {
         HttpStatus status = switch (exception.getCode()) {
             case "KNOWLEDGE_BASE_ACCESS_DENIED", "KNOWLEDGE_BASE_WRITE_FORBIDDEN" -> HttpStatus.FORBIDDEN;
-            case "INGESTION_JOB_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+            case "INGESTION_JOB_NOT_FOUND", "DOCUMENT_NOT_FOUND" -> HttpStatus.NOT_FOUND;
             case "FILE_EMPTY", "FILE_TOO_LARGE", "FILE_TYPE_UNSUPPORTED", "FILE_MEDIA_TYPE_UNSUPPORTED",
                  "FILE_NAME_MISSING", "FILE_NAME_INVALID", "FILE_EXTENSION_MISSING", "FILE_READ_FAILED" -> HttpStatus.BAD_REQUEST;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
@@ -44,6 +46,16 @@ class ApiExceptionHandler {
                 "Document storage is temporarily unavailable");
         problem.setTitle("Object storage unavailable");
         problem.setProperty("code", "OBJECT_STORAGE_UNAVAILABLE");
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
+    }
+
+    @ExceptionHandler({EmbeddingException.class, VectorSearchException.class})
+    ResponseEntity<ProblemDetail> handleEmbeddingOrSearchFailure(RuntimeException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Semantic retrieval is temporarily unavailable");
+        problem.setTitle("Semantic retrieval unavailable");
+        problem.setProperty("code", "SEMANTIC_RETRIEVAL_UNAVAILABLE");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
     }
 }

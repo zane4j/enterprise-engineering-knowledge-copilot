@@ -1,12 +1,12 @@
 # API Sketch
 
-All production endpoints will be tenant-scoped through authenticated JWT claims. During the local Phase 1 profile, a deterministic seeded user is used only to allow end-to-end development without an identity provider.
+All production endpoints will be tenant-scoped through authenticated JWT claims. During the local profile, a deterministic seeded user is used only to allow end-to-end development without an identity provider.
 
 ## System
 
 - `GET /api/v1/system/info` - foundation service metadata
 
-## Document ingestion: Phase 1
+## Document ingestion
 
 ### Upload a document
 
@@ -25,9 +25,13 @@ All production endpoints will be tenant-scoped through authenticated JWT claims.
 }
 ```
 
-The upload request stores the original object in MinIO, persists document metadata, and creates a durable `PENDING` ingestion job in one database transaction. If database persistence fails after a successful object upload, the API attempts compensating object deletion.
+The worker transitions a job through `PENDING -> PROCESSING -> SUCCEEDED | FAILED`. TXT and Markdown are parsed into metadata-rich chunks, embedded, and persisted in pgvector. PDF remains accepted at upload time but is not parsed yet.
 
-The worker transitions a job through `PENDING -> PROCESSING -> SUCCEEDED | FAILED`. TXT and Markdown currently become metadata-rich chunks. PDF is accepted at upload time but remains unsupported by the worker until the PDF parser increment.
+### Reindex a document
+
+`POST /api/v1/knowledge-bases/{knowledgeBaseId}/documents/{documentId}/reindex`
+
+Returns `202 Accepted` and creates a new durable ingestion job. Use this after changing the embedding provider or for documents uploaded before the embedding feature.
 
 ### List documents
 
@@ -36,6 +40,36 @@ The worker transitions a job through `PENDING -> PROCESSING -> SUCCEEDED | FAILE
 ### Inspect ingestion status
 
 - `GET /api/v1/ingestion-jobs/{ingestionJobId}`
+
+## Semantic retrieval
+
+`POST /api/v1/knowledge-bases/{knowledgeBaseId}/search`
+
+```json
+{
+  "query": "How should I troubleshoot database connection pool exhaustion?",
+  "limit": 5
+}
+```
+
+```json
+{
+  "hits": [
+    {
+      "content": "# Database Connection Pool ...",
+      "citation": {
+        "documentId": "3c5d8a98-e326-4fce-9178-8b09561a7d55",
+        "documentName": "payment-service-runbook.md",
+        "locator": "Database Connection Pool (line 12, chunk 0)",
+        "score": 0.82,
+        "metadata": {
+          "sectionTitle": "Database Connection Pool"
+        }
+      }
+    }
+  ]
+}
+```
 
 ## Planned endpoints
 

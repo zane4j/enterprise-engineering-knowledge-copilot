@@ -6,6 +6,7 @@ import io.github.zane4j.copilot.common.DomainException;
 import io.github.zane4j.copilot.storage.ObjectStoragePort;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,7 +73,23 @@ class DocumentUploadService {
         }
     }
 
-    java.util.List<DocumentRepository.DocumentSummary> listDocuments(UUID knowledgeBaseId) {
+    UploadedDocument reindex(UUID knowledgeBaseId, UUID documentId) {
+        CurrentActor actor = currentActorProvider.requireCurrentActor();
+        knowledgeBaseAccessRepository.requireWriteAccess(actor.tenantId(), actor.userId(), knowledgeBaseId);
+        UUID ingestionJobId = UUID.randomUUID();
+
+        UploadedDocument result = transactionTemplate.execute(status -> {
+            boolean scheduled = documentRepository.scheduleReingestion(actor.tenantId(), knowledgeBaseId, documentId);
+            if (!scheduled) {
+                throw new DomainException("DOCUMENT_NOT_FOUND", "Document was not found in this knowledge base");
+            }
+            ingestionJobRepository.create(ingestionJobId, actor.tenantId(), documentId);
+            return new UploadedDocument(documentId, ingestionJobId, "PENDING");
+        });
+        return Objects.requireNonNull(result, "Document reindex transaction returned no result");
+    }
+
+    List<DocumentRepository.DocumentSummary> listDocuments(UUID knowledgeBaseId) {
         CurrentActor actor = currentActorProvider.requireCurrentActor();
         knowledgeBaseAccessRepository.requireReadAccess(actor.tenantId(), actor.userId(), knowledgeBaseId);
         return documentRepository.findAllByKnowledgeBase(actor.tenantId(), knowledgeBaseId);
