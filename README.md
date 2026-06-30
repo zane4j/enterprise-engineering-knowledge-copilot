@@ -36,10 +36,11 @@ PostgreSQL + pgvector       MinIO
 metadata / chunks / search  original files
     |
     v
-Kafka / Worker
-    |
-    v
-Parse -> Chunk -> Embed -> Persist vectors
+Ingestion Worker
+    |-- claim durable job
+    |-- parse Markdown / TXT
+    |-- header-aware chunking
+    `-- persist chunks
 ```
 
 ## Technology stack
@@ -52,7 +53,7 @@ Parse -> Chunk -> Embed -> Persist vectors
 - Micrometer, OpenTelemetry, Prometheus, Grafana
 - JUnit 5, Testcontainers
 
-## Current milestone: Phase 1 — Document ingestion entry point
+## Current milestone: Phase 1.5 — Executable text ingestion
 
 - [x] Maven multi-module structure and CI
 - [x] PostgreSQL/pgvector, Redis, MinIO, optional Kafka local environment
@@ -60,10 +61,14 @@ Parse -> Chunk -> Embed -> Persist vectors
 - [x] Document upload API for PDF, Markdown, and text files
 - [x] MinIO-backed original-file storage with SHA-256 checksum
 - [x] Durable `PENDING` ingestion job and document-status API
-- [x] Tenant/knowledge-base authorization boundary with local seeded development data
-- [ ] Worker consumption, document parsing, chunking, and embeddings
-- [ ] JWT authentication and production RBAC adapter
+- [x] Database-polling worker with safe job claiming and stale-job recovery
+- [x] Markdown/TXT parsing and header-aware chunking
+- [x] Metadata-rich chunk persistence and retry-safe replacement
+- [ ] PDF parsing
+- [ ] Embedding provider and pgvector values
 - [ ] Hybrid retrieval, streaming chat, citations, and evaluation
+- [ ] JWT authentication and production RBAC adapter
+- [ ] Container image, HTTPS, and production deployment workflow
 
 ## Local development
 
@@ -71,9 +76,8 @@ Parse -> Chunk -> Embed -> Persist vectors
 
 ```bash
 cd infra
+docker compose down -v
 docker compose up -d
-# Kafka is optional until the worker event consumer is enabled.
-docker compose --profile messaging up -d
 ```
 
 The local profile seeds this knowledge base:
@@ -82,21 +86,15 @@ The local profile seeds this knowledge base:
 00000000-0000-0000-0000-000000000010  Engineering Runbooks
 ```
 
-If you ran PostgreSQL before the seed script was added, reset local volumes once:
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-### 2. Run the API
+### 2. Run API and worker in separate terminals
 
 ```bash
 mvn clean verify
 mvn -pl apps/api-server spring-boot:run
+mvn -pl apps/ingestion-worker spring-boot:run
 ```
 
-### 3. Upload a sample document
+### 3. Upload a Markdown document
 
 ```bash
 curl -i \
@@ -104,18 +102,18 @@ curl -i \
   http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/documents
 ```
 
-The API returns `202 Accepted` with a durable ingestion job ID. The job remains `PENDING` until the parsing and embedding worker is implemented.
+The API returns `202 Accepted`. Within the worker poll interval, the job should become `SUCCEEDED`, the document should become `READY`, and metadata-rich chunks should exist in PostgreSQL.
 
 ## Modules
 
 ```text
 apps/
   api-server/          REST API, document upload, metadata persistence
-  ingestion-worker/    upcoming parsing, chunking, embedding workflow
+  ingestion-worker/    durable job claim, text parsing, and chunk persistence
 modules/
   common/              shared primitives and error handling
   domain/              domain model and ports
-  rag-core/            chunking, retrieval, citations
+  rag-core/            document parsing, chunking, retrieval, citations
   security/            tenant context and authorization primitives
   storage/             MinIO/S3 object storage adapter
 infra/                 local infrastructure and database bootstrap

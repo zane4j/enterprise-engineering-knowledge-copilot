@@ -4,12 +4,15 @@ import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
 
-/**
- * Port for original document storage. A MinIO/S3 adapter will implement this in Phase 1.
- */
+/** Port for original document storage. */
 public interface ObjectStoragePort {
 
     StoredObject put(UploadCommand command, InputStream content);
+
+    /**
+     * Opens an object stream. The caller is responsible for closing the returned stream.
+     */
+    InputStream get(String objectKey);
 
     URI createDownloadUrl(String objectKey, Duration ttl);
 

@@ -27,6 +27,8 @@ All production endpoints will be tenant-scoped through authenticated JWT claims.
 
 The upload request stores the original object in MinIO, persists document metadata, and creates a durable `PENDING` ingestion job in one database transaction. If database persistence fails after a successful object upload, the API attempts compensating object deletion.
 
+The worker transitions a job through `PENDING -> PROCESSING -> SUCCEEDED | FAILED`. TXT and Markdown currently become metadata-rich chunks. PDF is accepted at upload time but remains unsupported by the worker until the PDF parser increment.
+
 ### List documents
 
 - `GET /api/v1/knowledge-bases/{knowledgeBaseId}/documents`
