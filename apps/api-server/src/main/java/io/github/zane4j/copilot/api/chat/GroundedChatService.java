@@ -33,8 +33,9 @@ class GroundedChatService {
             eventListener.onRetrieval(prompt.sources().size());
             prompt.sources().forEach(eventListener::onCitation);
             if (prompt.sources().isEmpty()) {
-                eventListener.onToken("I could not find enough information in this knowledge base to answer that question.");
-                eventListener.onCompleted(0, 0);
+                String message = "I could not find enough information in this knowledge base to answer that question.";
+                eventListener.onToken(message);
+                eventListener.onCompleted(message.length(), 0);
                 return;
             }
 

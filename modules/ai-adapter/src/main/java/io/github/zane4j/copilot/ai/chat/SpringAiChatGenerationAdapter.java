@@ -16,8 +16,12 @@ final class SpringAiChatGenerationAdapter implements ChatGenerationPort {
     public void stream(GroundedChatRequest request, Listener listener) {
         try {
             chatClient.prompt()
-                    .system(request.systemInstruction())
-                    .user(request.question())
+                    .system(system -> system
+                            .text("{systemInstruction}")
+                            .param("systemInstruction", request.systemInstruction()))
+                    .user(user -> user
+                            .text("{question}")
+                            .param("question", request.question()))
                     .stream()
                     .content()
                     .subscribe(listener::onToken, listener::onError, listener::onComplete);
