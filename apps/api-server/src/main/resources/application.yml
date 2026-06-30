@@ -11,6 +11,15 @@ spring:
     multipart:
       max-file-size: ${MAX_UPLOAD_FILE_SIZE:25MB}
       max-request-size: ${MAX_UPLOAD_REQUEST_SIZE:26MB}
+  ai:
+    model:
+      chat: none
+      embedding: ${SPRING_AI_EMBEDDING_MODEL:none}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      embedding:
+        model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
+        dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -33,3 +42,8 @@ copilot:
     bucket-name: ${MINIO_BUCKET:copilot-documents}
   upload:
     max-file-size-bytes: ${COPILOT_MAX_FILE_SIZE_BYTES:26214400}
+  embedding:
+    provider: ${COPILOT_EMBEDDING_PROVIDER:hash}
+    model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
+    dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
+    batch-size: ${COPILOT_EMBEDDING_BATCH_SIZE:32}

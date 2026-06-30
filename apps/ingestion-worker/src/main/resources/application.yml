@@ -5,6 +5,15 @@ spring:
     url: ${JDBC_URL:jdbc:postgresql://localhost:5432/copilot}
     username: ${JDBC_USERNAME:copilot}
     password: ${JDBC_PASSWORD:copilot}
+  ai:
+    model:
+      chat: none
+      embedding: ${SPRING_AI_EMBEDDING_MODEL:none}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      embedding:
+        model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
+        dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
 
 management:
   endpoints:
@@ -18,6 +27,11 @@ copilot:
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket-name: ${MINIO_BUCKET:copilot-documents}
+  embedding:
+    provider: ${COPILOT_EMBEDDING_PROVIDER:hash}
+    model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
+    dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
+    batch-size: ${COPILOT_EMBEDDING_BATCH_SIZE:32}
   ingestion:
     enabled: ${COPILOT_INGESTION_ENABLED:true}
     max-attempts: ${COPILOT_INGESTION_MAX_ATTEMPTS:3}

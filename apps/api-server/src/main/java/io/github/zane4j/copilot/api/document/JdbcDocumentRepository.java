@@ -46,6 +46,21 @@ class JdbcDocumentRepository implements DocumentRepository {
                 """, this::mapSummary, tenantId, knowledgeBaseId);
     }
 
+    @Override
+    public boolean scheduleReingestion(UUID tenantId, UUID knowledgeBaseId, UUID documentId) {
+        return jdbcTemplate.update("""
+                UPDATE documents
+                SET status = 'PENDING',
+                    version = version + 1,
+                    failure_reason = NULL,
+                    updated_at = now()
+                WHERE id = ?
+                  AND tenant_id = ?
+                  AND knowledge_base_id = ?
+                  AND status IN ('READY', 'FAILED')
+                """, documentId, tenantId, knowledgeBaseId) == 1;
+    }
+
     private DocumentSummary mapSummary(ResultSet resultSet, int rowNum) throws SQLException {
         return new DocumentSummary(
                 resultSet.getObject("id", UUID.class),

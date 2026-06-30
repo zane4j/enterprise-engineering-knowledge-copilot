@@ -2,7 +2,7 @@
 
 A multi-tenant, source-grounded RAG platform for engineering teams.
 
-It ingests internal engineering documents such as runbooks, architecture decisions, incident postmortems, API specifications, and SOPs. Users can ask questions within their authorized knowledge bases and receive streaming answers with traceable citations.
+It ingests internal engineering documents such as runbooks, architecture decisions, incident postmortems, API specifications, and SOPs. Users can search within their authorized knowledge bases and receive source-grounded retrieval results. Chat synthesis is the next increment.
 
 ## Why this project
 
@@ -11,7 +11,7 @@ Typical "chat with PDF" demos do not address the constraints that matter in an e
 - tenant and knowledge-base isolation
 - RBAC-enforced retrieval
 - asynchronous document ingestion
-- hybrid retrieval: vector + keyword search
+- provider-swappable embeddings and pgvector search
 - source citations and low-confidence handling
 - incident troubleshooting workflows
 - RAG evaluation and observability
@@ -26,21 +26,22 @@ React Web
 Spring Boot API
     |-- Identity and RBAC
     |-- Knowledge Base Management
-    |-- RAG Chat Orchestrator
+    |-- Vector Retrieval API
     |-- Document Upload API
     |
     +-------------------------+
     |                         |
     v                         v
 PostgreSQL + pgvector       MinIO
-metadata / chunks / search  original files
+metadata / chunks / vectors original files
     |
     v
 Ingestion Worker
     |-- claim durable job
     |-- parse Markdown / TXT
     |-- header-aware chunking
-    `-- persist chunks
+    |-- batch embeddings
+    `-- persist chunks and vectors
 ```
 
 ## Technology stack
@@ -53,20 +54,21 @@ Ingestion Worker
 - Micrometer, OpenTelemetry, Prometheus, Grafana
 - JUnit 5, Testcontainers
 
-## Current milestone: Phase 1.5 — Executable text ingestion
+## Current milestone: Phase 2 — Vector-ready knowledge ingestion
 
 - [x] Maven multi-module structure and CI
 - [x] PostgreSQL/pgvector, Redis, MinIO, optional Kafka local environment
-- [x] Initial tenant, knowledge-base, document, and ingestion-job schema
-- [x] Document upload API for PDF, Markdown, and text files
-- [x] MinIO-backed original-file storage with SHA-256 checksum
-- [x] Durable `PENDING` ingestion job and document-status API
-- [x] Database-polling worker with safe job claiming and stale-job recovery
-- [x] Markdown/TXT parsing and header-aware chunking
-- [x] Metadata-rich chunk persistence and retry-safe replacement
+- [x] Tenant, knowledge-base, document, and ingestion-job schema
+- [x] Document upload API and MinIO storage with SHA-256
+- [x] Durable worker, Markdown/TXT parsing, and header-aware chunking
+- [x] Local deterministic embedding provider for full offline development
+- [x] OpenAI EmbeddingModel adapter through Spring AI configuration
+- [x] 1536-dimensional pgvector persistence
+- [x] Tenant- and knowledge-base-filtered cosine vector search API
+- [x] Document reindex API for embedding changes or backfill
 - [ ] PDF parsing
-- [ ] Embedding provider and pgvector values
-- [ ] Hybrid retrieval, streaming chat, citations, and evaluation
+- [ ] Hybrid retrieval and reranking
+- [ ] Chat synthesis, streaming answers, and citations
 - [ ] JWT authentication and production RBAC adapter
 - [ ] Container image, HTTPS, and production deployment workflow
 
@@ -94,26 +96,45 @@ mvn -pl apps/api-server spring-boot:run
 mvn -pl apps/ingestion-worker spring-boot:run
 ```
 
-### 3. Upload a Markdown document
+### 3. Upload and search a Markdown document
 
 ```bash
 curl -i \
   -F "file=@docs/adr/001-modular-monolith.md;type=text/markdown" \
   http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/documents
+
+curl -s \
+  -H "Content-Type: application/json" \
+  -d '{"query":"Why use a modular monolith?","limit":5}' \
+  http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/search
 ```
 
-The API returns `202 Accepted`. Within the worker poll interval, the job should become `SUCCEEDED`, the document should become `READY`, and metadata-rich chunks should exist in PostgreSQL.
+The API returns `202 Accepted` for upload. Within the worker poll interval, the document becomes `READY`. The search API then returns matching chunks and their source locations.
+
+### Use OpenAI embeddings
+
+For production-quality semantic retrieval, set environment variables before starting both applications:
+
+```bash
+export COPILOT_EMBEDDING_PROVIDER=openai
+export SPRING_AI_EMBEDDING_MODEL=openai
+export OPENAI_API_KEY=replace-with-secret
+export COPILOT_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+Reindex existing documents after changing the provider.
 
 ## Modules
 
 ```text
 apps/
-  api-server/          REST API, document upload, metadata persistence
-  ingestion-worker/    durable job claim, text parsing, and chunk persistence
+  api-server/          REST API, retrieval, document metadata
+  ingestion-worker/    durable job claim, parsing, chunking, embedding
 modules/
   common/              shared primitives and error handling
   domain/              domain model and ports
-  rag-core/            document parsing, chunking, retrieval, citations
+  rag-core/            parsing, chunking, embeddings, retrieval contracts
+  ai-adapter/          Spring AI adapter and provider configuration
   security/            tenant context and authorization primitives
   storage/             MinIO/S3 object storage adapter
 infra/                 local infrastructure and database bootstrap

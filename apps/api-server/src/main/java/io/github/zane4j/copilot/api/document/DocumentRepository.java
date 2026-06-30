@@ -10,6 +10,8 @@ interface DocumentRepository {
 
     List<DocumentSummary> findAllByKnowledgeBase(UUID tenantId, UUID knowledgeBaseId);
 
+    boolean scheduleReingestion(UUID tenantId, UUID knowledgeBaseId, UUID documentId);
+
     record CreateDocumentCommand(
             UUID documentId,
             UUID tenantId,

@@ -27,9 +27,14 @@ class DocumentController {
     ResponseEntity<DocumentUploadResponse> upload(
             @PathVariable UUID knowledgeBaseId,
             @RequestPart("file") MultipartFile file) {
-        DocumentUploadService.UploadedDocument uploaded = documentUploadService.upload(knowledgeBaseId, file);
-        return ResponseEntity.accepted().body(new DocumentUploadResponse(
-                uploaded.documentId(), uploaded.ingestionJobId(), uploaded.status()));
+        return ResponseEntity.accepted().body(toResponse(documentUploadService.upload(knowledgeBaseId, file)));
+    }
+
+    @PostMapping("/{documentId}/reindex")
+    ResponseEntity<DocumentUploadResponse> reindex(
+            @PathVariable UUID knowledgeBaseId,
+            @PathVariable UUID documentId) {
+        return ResponseEntity.accepted().body(toResponse(documentUploadService.reindex(knowledgeBaseId, documentId)));
     }
 
     @GetMapping
@@ -44,6 +49,10 @@ class DocumentController {
                         document.createdAt(),
                         document.updatedAt()))
                 .toList();
+    }
+
+    private DocumentUploadResponse toResponse(DocumentUploadService.UploadedDocument uploaded) {
+        return new DocumentUploadResponse(uploaded.documentId(), uploaded.ingestionJobId(), uploaded.status());
     }
 
     record DocumentUploadResponse(UUID documentId, UUID ingestionJobId, String status) {

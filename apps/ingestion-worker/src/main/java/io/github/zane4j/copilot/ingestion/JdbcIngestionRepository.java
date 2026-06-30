@@ -1,5 +1,6 @@
 package io.github.zane4j.copilot.ingestion;
 
+import io.github.zane4j.copilot.rag.embedding.PgVectorLiteral;
 import io.github.zane4j.copilot.rag.ingestion.ChunkDraft;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -72,22 +73,30 @@ class JdbcIngestionRepository {
         return Optional.ofNullable(claimed);
     }
 
-    void complete(ClaimedIngestionJob job, List<ChunkDraft> chunks) {
+    void complete(
+            ClaimedIngestionJob job,
+            List<ChunkDraft> chunks,
+            List<float[]> embeddings,
+            String embeddingProvider) {
+        if (chunks.size() != embeddings.size()) {
+            throw new IllegalArgumentException("Every persisted chunk must have exactly one embedding");
+        }
         transactionTemplate.executeWithoutResult(status -> {
             jdbcTemplate.update("""
                     DELETE FROM document_chunks
-                    WHERE tenant_id = ? AND document_id = ? AND document_version = ?
-                    """, job.tenantId(), job.documentId(), job.documentVersion());
+                    WHERE tenant_id = ? AND document_id = ?
+                    """, job.tenantId(), job.documentId());
 
             jdbcTemplate.batchUpdate("""
                     INSERT INTO document_chunks (
                         id, tenant_id, knowledge_base_id, document_id, document_version,
-                        chunk_index, content, metadata
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                        chunk_index, content, embedding, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?::vector, ?::jsonb)
                     """, new BatchPreparedStatementSetter() {
                 @Override
                 public void setValues(PreparedStatement statement, int index) throws SQLException {
                     ChunkDraft chunk = chunks.get(index);
+                    float[] embedding = embeddings.get(index);
                     statement.setObject(1, UUID.randomUUID());
                     statement.setObject(2, job.tenantId());
                     statement.setObject(3, job.knowledgeBaseId());
@@ -95,7 +104,9 @@ class JdbcIngestionRepository {
                     statement.setInt(5, job.documentVersion());
                     statement.setInt(6, chunk.index());
                     statement.setString(7, chunk.content());
-                    statement.setString(8, metadataJson(job.originalFileName(), job.contentType(), chunk));
+                    statement.setString(8, PgVectorLiteral.of(embedding));
+                    statement.setString(9, metadataJson(job.originalFileName(), job.contentType(), chunk,
+                            embeddingProvider, embedding.length));
                 }
 
                 @Override
@@ -147,16 +158,24 @@ class JdbcIngestionRepository {
                 resultSet.getInt("attempt_count"));
     }
 
-    private String metadataJson(String sourceFileName, String contentType, ChunkDraft chunk) {
+    private String metadataJson(
+            String sourceFileName,
+            String contentType,
+            ChunkDraft chunk,
+            String embeddingProvider,
+            int embeddingDimension) {
         return ("{\"sourceFileName\":\"%s\",\"contentType\":\"%s\",\"sectionTitle\":\"%s\","
-                + "\"sectionStartLine\":%d,\"chunkIndex\":%d,\"characterCount\":%d}")
+                + "\"sectionStartLine\":%d,\"chunkIndex\":%d,\"characterCount\":%d,"
+                + "\"embeddingProvider\":\"%s\",\"embeddingDimension\":%d}")
                 .formatted(
                         escapeJson(sourceFileName),
                         escapeJson(contentType),
                         escapeJson(chunk.sectionTitle()),
                         chunk.sectionStartLine(),
                         chunk.index(),
-                        chunk.content().length());
+                        chunk.content().length(),
+                        escapeJson(embeddingProvider),
+                        embeddingDimension);
     }
 
     private String escapeJson(String value) {
