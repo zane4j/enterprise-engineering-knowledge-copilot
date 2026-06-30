@@ -9,7 +9,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
-class KnowledgeBaseSearchService {
+public class KnowledgeBaseSearchService {
 
     private static final int DEFAULT_LIMIT = 5;
 
@@ -26,7 +26,7 @@ class KnowledgeBaseSearchService {
         this.retrievalPort = retrievalPort;
     }
 
-    List<RetrievalPort.RetrievedChunk> search(UUID knowledgeBaseId, String query, Integer requestedLimit) {
+    public List<RetrievalPort.RetrievedChunk> search(UUID knowledgeBaseId, String query, Integer requestedLimit) {
         CurrentActor actor = currentActorProvider.requireCurrentActor();
         knowledgeBaseAccessRepository.requireReadAccess(actor.tenantId(), actor.userId(), knowledgeBaseId);
         int limit = requestedLimit == null ? DEFAULT_LIMIT : requestedLimit;

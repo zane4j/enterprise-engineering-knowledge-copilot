@@ -13,7 +13,7 @@ spring:
       max-request-size: ${MAX_UPLOAD_REQUEST_SIZE:26MB}
   ai:
     model:
-      chat: none
+      chat: ${SPRING_AI_CHAT_MODEL:none}
       embedding: ${SPRING_AI_EMBEDDING_MODEL:none}
     openai:
       api-key: ${OPENAI_API_KEY:}
@@ -47,3 +47,6 @@ copilot:
     model: ${COPILOT_EMBEDDING_MODEL:text-embedding-3-small}
     dimensions: ${COPILOT_EMBEDDING_DIMENSIONS:1536}
     batch-size: ${COPILOT_EMBEDDING_BATCH_SIZE:32}
+  chat:
+    provider: ${COPILOT_CHAT_PROVIDER:context}
+    sse-timeout-ms: ${COPILOT_CHAT_SSE_TIMEOUT_MS:90000}

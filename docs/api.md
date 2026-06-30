@@ -52,32 +52,45 @@ Returns `202 Accepted` and creates a new durable ingestion job. Use this after c
 }
 ```
 
+## Source-grounded streaming chat
+
+`POST /api/v1/knowledge-bases/{knowledgeBaseId}/chat/stream`
+
+- Request: `application/json`
+- Response: `text/event-stream`
+- The API checks knowledge-base read access, retrieves tenant-scoped chunks, emits citations before model tokens, and refuses to synthesize when no sources are found.
+
 ```json
 {
-  "hits": [
-    {
-      "content": "# Database Connection Pool ...",
-      "citation": {
-        "documentId": "3c5d8a98-e326-4fce-9178-8b09561a7d55",
-        "documentName": "payment-service-runbook.md",
-        "locator": "Database Connection Pool (line 12, chunk 0)",
-        "score": 0.82,
-        "metadata": {
-          "sectionTitle": "Database Connection Pool"
-        }
-      }
-    }
-  ]
+  "question": "How should I troubleshoot database connection pool exhaustion?"
 }
 ```
+
+The stream uses these event types:
+
+| Event | Payload | Meaning |
+| --- | --- | --- |
+| `retrieval` | `citationCount` | Retrieval finished before generation starts. |
+| `citation` | source reference and source metadata | A source available to support the answer, for example `S1`. |
+| `token` | `text` | A streamed answer fragment. |
+| `completed` | answer character count and citation count | Generation completed successfully. |
+| `error` | safe error code and message | Generation failed without exposing provider details. |
+
+Example with curl:
+
+```bash
+curl -N \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{"question":"Why use a modular monolith?"}' \
+  http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/chat/stream
+```
+
+Local mode uses `COPILOT_CHAT_PROVIDER=context` and streams grounded source excerpts without an external chat model. For model synthesis, set `COPILOT_CHAT_PROVIDER=openai`, `SPRING_AI_CHAT_MODEL=openai`, and `OPENAI_API_KEY`.
 
 ## Planned endpoints
 
 - `POST /api/v1/knowledge-bases`
 - `GET /api/v1/knowledge-bases`
-- `POST /api/v1/chat/sessions`
-- `POST /api/v1/chat/sessions/{sessionId}/messages/stream`
 - `POST /api/v1/incidents/analyze`
 - `POST /api/v1/feedback`
-
-The future streaming chat endpoint will use Server-Sent Events and emit `token`, `citation`, `completed`, and `error` events.
