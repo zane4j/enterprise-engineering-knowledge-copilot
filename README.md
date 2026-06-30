@@ -36,10 +36,10 @@ PostgreSQL + pgvector       MinIO
 metadata / chunks / search  original files
     |
     v
-Kafka / Worker
+Ingestion Worker
     |
     v
-Parse -> Chunk -> Embed -> Persist vectors
+Parse -> Chunk -> Persist chunks -> Embed later
 ```
 
 ## Technology stack
@@ -52,7 +52,7 @@ Parse -> Chunk -> Embed -> Persist vectors
 - Micrometer, OpenTelemetry, Prometheus, Grafana
 - JUnit 5, Testcontainers
 
-## Current milestone: Phase 1 — Document ingestion entry point
+## Current milestone: Phase 1 — Text ingestion foundation
 
 - [x] Maven multi-module structure and CI
 - [x] PostgreSQL/pgvector, Redis, MinIO, optional Kafka local environment
@@ -61,7 +61,11 @@ Parse -> Chunk -> Embed -> Persist vectors
 - [x] MinIO-backed original-file storage with SHA-256 checksum
 - [x] Durable `PENDING` ingestion job and document-status API
 - [x] Tenant/knowledge-base authorization boundary with local seeded development data
-- [ ] Worker consumption, document parsing, chunking, and embeddings
+- [x] Worker polling of durable `PENDING` jobs
+- [x] Markdown/TXT parsing and header-aware chunking
+- [x] Chunk persistence into `document_chunks`
+- [ ] PDF parsing
+- [ ] Embedding generation and pgvector similarity search
 - [ ] JWT authentication and production RBAC adapter
 - [ ] Hybrid retrieval, streaming chat, citations, and evaluation
 
@@ -72,8 +76,6 @@ Parse -> Chunk -> Embed -> Persist vectors
 ```bash
 cd infra
 docker compose up -d
-# Kafka is optional until the worker event consumer is enabled.
-docker compose --profile messaging up -d
 ```
 
 The local profile seeds this knowledge base:
@@ -89,11 +91,12 @@ docker compose down -v
 docker compose up -d
 ```
 
-### 2. Run the API
+### 2. Run the API and Worker
 
 ```bash
 mvn clean verify
 mvn -pl apps/api-server spring-boot:run
+mvn -pl apps/ingestion-worker spring-boot:run
 ```
 
 ### 3. Upload a sample document
@@ -104,14 +107,14 @@ curl -i \
   http://localhost:8080/api/v1/knowledge-bases/00000000-0000-0000-0000-000000000010/documents
 ```
 
-The API returns `202 Accepted` with a durable ingestion job ID. The job remains `PENDING` until the parsing and embedding worker is implemented.
+The API returns `202 Accepted` with a durable ingestion job ID. The worker polls the job, parses the Markdown text, creates chunks, and marks the document `READY`.
 
 ## Modules
 
 ```text
 apps/
   api-server/          REST API, document upload, metadata persistence
-  ingestion-worker/    upcoming parsing, chunking, embedding workflow
+  ingestion-worker/    polling worker, text parsing, chunk persistence
 modules/
   common/              shared primitives and error handling
   domain/              domain model and ports

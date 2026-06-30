@@ -1,6 +1,12 @@
 spring:
   application:
     name: copilot-ingestion-worker
+  profiles:
+    default: local
+  datasource:
+    url: ${JDBC_URL:jdbc:postgresql://localhost:5432/copilot}
+    username: ${JDBC_USERNAME:copilot}
+    password: ${JDBC_PASSWORD:copilot}
 
 management:
   endpoints:
@@ -9,6 +15,12 @@ management:
         include: health,info,prometheus
 
 copilot:
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket-name: ${MINIO_BUCKET:copilot-documents}
   ingestion:
     enabled: true
+    polling-delay-ms: ${COPILOT_INGESTION_POLLING_DELAY_MS:5000}
     max-attempts: 3
