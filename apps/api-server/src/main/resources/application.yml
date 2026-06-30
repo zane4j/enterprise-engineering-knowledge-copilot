@@ -1,6 +1,16 @@
 spring:
   application:
     name: copilot-api-server
+  profiles:
+    default: local
+  datasource:
+    url: ${JDBC_URL:jdbc:postgresql://localhost:5432/copilot}
+    username: ${JDBC_USERNAME:copilot}
+    password: ${JDBC_PASSWORD:copilot}
+  servlet:
+    multipart:
+      max-file-size: ${MAX_UPLOAD_FILE_SIZE:25MB}
+      max-request-size: ${MAX_UPLOAD_REQUEST_SIZE:26MB}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -16,5 +26,10 @@ management:
         enabled: true
 
 copilot:
-  security:
-    tenant-context-required: true
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket-name: ${MINIO_BUCKET:copilot-documents}
+  upload:
+    max-file-size-bytes: ${COPILOT_MAX_FILE_SIZE_BYTES:26214400}
