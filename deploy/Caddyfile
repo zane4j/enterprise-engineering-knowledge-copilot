@@ -1,0 +1,10 @@
+{$DOMAIN} {
+    encode zstd gzip
+
+    @health path /actuator/health /actuator/health/**
+    handle @health {
+        reverse_proxy api-server:8080
+    }
+
+    reverse_proxy api-server:8080
+}
